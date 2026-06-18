@@ -44,7 +44,7 @@ pub type HttpsError = enum {
 
 // ── Error formatting ──────────────────────────────────────────────────────────
 
-pub fn https_error_msg(e: HttpsError) -> String {
+pub total fn https_error_msg(e: HttpsError) -> String {
     match e {
         HttpsError::InvalidUrl(msg)       => "invalid URL: ".concat(msg),
         HttpsError::ConnectionFailed(msg)  => "HTTPS connection failed: ".concat(msg),
@@ -54,30 +54,30 @@ pub fn https_error_msg(e: HttpsError) -> String {
 
 // ── Internal helpers ────────────────────────────────────────────────────────
 
-fn map_connect_error(e: TlsError) -> HttpsError {
+total fn map_connect_error(e: TlsError) -> HttpsError {
     HttpsError::ConnectionFailed(tls_error_msg(e))
 }
 
-fn map_write_error(e: TlsError) -> HttpsError {
+total fn map_write_error(e: TlsError) -> HttpsError {
     HttpsError::ConnectionFailed(tls_error_msg(e))
 }
 
-fn map_read_error(e: TlsError) -> HttpsError {
+total fn map_read_error(e: TlsError) -> HttpsError {
     HttpsError::ConnectionFailed(tls_error_msg(e))
 }
 
-fn close_and_fail(stream: TlsStream, e: HttpsError) -> Result[Tainted[String], HttpsError] {
+total fn close_and_fail(stream: TlsStream, e: HttpsError) -> Result[Tainted[String], HttpsError] {
     tls_client_close(stream);
     Err(e)
 }
 
 // ── Input validation ────────────────────────────────────────────────────────
 
-fn contains_crlf(s: String) -> Bool {
+total fn contains_crlf(s: String) -> Bool {
     s.contains("\r") || s.contains("\n")
 }
 
-fn validate_no_crlf(s: String, context: String) -> Result[Unit, HttpsError] {
+total fn validate_no_crlf(s: String, context: String) -> Result[Unit, HttpsError] {
     if contains_crlf(s) {
         Err(HttpsError::InvalidUrl(context.concat(" contains CR/LF")))
     } else {
@@ -85,7 +85,7 @@ fn validate_no_crlf(s: String, context: String) -> Result[Unit, HttpsError] {
     }
 }
 
-fn validate_https_headers(headers: Map[String, String]) -> Result[Unit, HttpsError] {
+total fn validate_https_headers(headers: Map[String, String]) -> Result[Unit, HttpsError] {
     let valid: ref Bool = true;
     for k in headers.keys() {
         if valid && contains_crlf(k) {
@@ -114,7 +114,7 @@ type ParsedHttpsUrl = struct {
     path: String,
 }
 
-fn validate_port(port: Int) -> Result[Int, HttpsError] {
+total fn validate_port(port: Int) -> Result[Int, HttpsError] {
     if port < 1 || port > 65535 {
         Err(HttpsError::InvalidUrl("port out of range (1-65535)"))
     } else {
@@ -122,7 +122,7 @@ fn validate_port(port: Int) -> Result[Int, HttpsError] {
     }
 }
 
-fn parse_https_url(url: String) -> Result[ParsedHttpsUrl, HttpsError] {
+total fn parse_https_url(url: String) -> Result[ParsedHttpsUrl, HttpsError] {
     if !url.starts_with("https://") {
         Err(HttpsError::InvalidUrl("only https:// supported"))
     } else {
@@ -164,7 +164,7 @@ fn parse_https_url(url: String) -> Result[ParsedHttpsUrl, HttpsError] {
     }
 }
 
-fn validate_parsed_url(parsed: ParsedHttpsUrl) -> Result[ParsedHttpsUrl, HttpsError] {
+total fn validate_parsed_url(parsed: ParsedHttpsUrl) -> Result[ParsedHttpsUrl, HttpsError] {
     let _: Unit = validate_no_crlf(parsed.path, "path")?;
     let _: Unit = validate_no_crlf(parsed.host, "host")?;
     Ok(parsed)
@@ -172,7 +172,7 @@ fn validate_parsed_url(parsed: ParsedHttpsUrl) -> Result[ParsedHttpsUrl, HttpsEr
 
 // ── Request building ────────────────────────────────────────────────────────
 
-fn build_https_request(method: String, host: String, port: Int, path: String, headers: Map[String, String], body: String) -> String {
+total fn build_https_request(method: String, host: String, port: Int, path: String, headers: Map[String, String], body: String) -> String {
     let request_line: String = method
         .concat(" ")
         .concat(path)
@@ -199,27 +199,27 @@ fn build_https_request(method: String, host: String, port: Int, path: String, he
 
 // ── Response parsing ────────────────────────────────────────────────────────
 
-fn empty_https_headers() -> Map[String, String] {
+total fn empty_https_headers() -> Map[String, String] {
     let m: ref Map[String, String] = {"__init__": ""};
     let _: Option[String] = m.remove("__init__");
     m
 }
 
-fn require_https_resp(opt: Option[String], msg: String) -> Result[String, HttpsError] {
+total fn require_https_resp(opt: Option[String], msg: String) -> Result[String, HttpsError] {
     match opt {
         Some(v) => Ok(v),
         None    => Err(HttpsError::InvalidResponse(msg)),
     }
 }
 
-fn parse_https_status_code(s: String) -> Result[Int, HttpsError] {
+total fn parse_https_status_code(s: String) -> Result[Int, HttpsError] {
     match s.parse_int() {
         Ok(c)  => Ok(c),
         Err(_) => Err(HttpsError::InvalidResponse("non-numeric status code")),
     }
 }
 
-fn parse_https_headers(lines: List[String]) -> Map[String, String] {
+total fn parse_https_headers(lines: List[String]) -> Map[String, String] {
     let m: ref Map[String, String] = empty_https_headers();
     for line in lines {
         match line.find(":") {
@@ -234,7 +234,7 @@ fn parse_https_headers(lines: List[String]) -> Map[String, String] {
     m
 }
 
-fn parse_https_response(raw: String) -> Result[HttpsResponse, HttpsError] {
+total fn parse_https_response(raw: String) -> Result[HttpsResponse, HttpsError] {
     let lines: List[String] = raw.split("\r\n");
     let status_line: String = require_https_resp(lines.get(0), "empty response")?;
     let parts: List[String] = status_line.split(" ");
