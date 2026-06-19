@@ -19,11 +19,9 @@
 //      values for security decisions without independent validation.
 //
 // See #1017.
-
 use std.ifc.{Tainted, taint, trust}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
 /// Minimal HTTPS response: status code + headers + body.
 /// NOTE: headers are plain String, NOT Tainted — the raw response is
 /// untainted before parsing so headers can be inspected. Only the body
@@ -43,17 +41,16 @@ pub type HttpsError = enum {
 }
 
 // ── Error formatting ──────────────────────────────────────────────────────────
-
+/// Format an HTTPS error into a human-readable message.
 pub total fn https_error_msg(e: HttpsError) -> String {
     match e {
-        HttpsError::InvalidUrl(msg)       => "invalid URL: ".concat(msg),
-        HttpsError::ConnectionFailed(msg)  => "HTTPS connection failed: ".concat(msg),
-        HttpsError::InvalidResponse(msg)   => "invalid response: ".concat(msg),
+        HttpsError::InvalidUrl(msg) => "invalid URL: ".concat(msg),
+        HttpsError::ConnectionFailed(msg) => "HTTPS connection failed: ".concat(msg),
+        HttpsError::InvalidResponse(msg) => "invalid response: ".concat(msg),
     }
 }
 
 // ── Internal helpers ────────────────────────────────────────────────────────
-
 total fn map_connect_error(e: TlsError) -> HttpsError {
     HttpsError::ConnectionFailed(tls_error_msg(e))
 }
@@ -66,18 +63,21 @@ total fn map_read_error(e: TlsError) -> HttpsError {
     HttpsError::ConnectionFailed(tls_error_msg(e))
 }
 
-total fn close_and_fail(stream: TlsStream, e: HttpsError) -> Result[Tainted[String], HttpsError] {
+total fn close_and_fail(
+    stream: TlsStream,
+    e: HttpsError,
+) -> Result[Tainted[String], HttpsError] {
     tls_client_close(stream);
     Err(e)
 }
 
 // ── Input validation ────────────────────────────────────────────────────────
+total fn contains_crlf(s: String) -> Bool { s.contains("\r") || s.contains("\n") }
 
-total fn contains_crlf(s: String) -> Bool {
-    s.contains("\r") || s.contains("\n")
-}
-
-total fn validate_no_crlf(s: String, context: String) -> Result[Unit, HttpsError] {
+total fn validate_no_crlf(
+    s: String,
+    context: String,
+) -> Result[Unit, HttpsError] {
     if contains_crlf(s) {
         Err(HttpsError::InvalidUrl(context.concat(" contains CR/LF")))
     } else {
@@ -89,13 +89,13 @@ total fn validate_https_headers(headers: Map[String, String]) -> Result[Unit, Ht
     let valid: ref Bool = true;
     for k in headers.keys() {
         if valid && contains_crlf(k) {
-            valid = false
+            valid = false;
         } else {
             match headers.get(k) {
                 Some(v) => if valid && contains_crlf(v) {
-                    valid = false
-                } else {},
-                None => {},
+                    valid = false;
+                } else { },
+                None => { },
             }
         }
     }
@@ -107,7 +107,6 @@ total fn validate_https_headers(headers: Map[String, String]) -> Result[Unit, Ht
 }
 
 // ── URL parsing (HTTPS only) ────────────────────────────────────────────────
-
 type ParsedHttpsUrl = struct {
     host: String,
     port: Int,
@@ -132,11 +131,11 @@ total fn parse_https_url(url: String) -> Result[ParsedHttpsUrl, HttpsError] {
         let slash_pos: Option[Int] = rest.find("/");
         let host_port: String = match slash_pos {
             Some(i) => rest.substring(0, i),
-            None    => rest.substring(0, rest_len),
+            None => rest.substring(0, rest_len),
         };
         let path: String = match slash_pos {
             Some(i) => rest.substring(i, rest_len),
-            None    => "/",
+            None => "/",
         };
         if host_port.len() == 0 {
             Err(HttpsError::InvalidUrl("empty host"))
@@ -171,50 +170,53 @@ total fn validate_parsed_url(parsed: ParsedHttpsUrl) -> Result[ParsedHttpsUrl, H
 }
 
 // ── Request building ────────────────────────────────────────────────────────
-
-total fn build_https_request(method: String, host: String, port: Int, path: String, headers: Map[String, String], body: String) -> String {
-    let request_line: String = method
-        .concat(" ")
-        .concat(path)
-        .concat(" HTTP/1.1\r\n");
+total fn build_https_request(
+    method: String,
+    host: String,
+    port: Int,
+    path: String,
+    headers: Map[String, String],
+    body: String,
+) -> String {
+    let request_line: String = method.concat(" ").concat(path).concat(" HTTP/1.1\r\n");
     let host_val: String = if port != 443 {
         host.concat(":").concat(port.to_string())
-    } else {
-        host
-    };
-    let result: ref String = request_line
-        .concat("Host: ").concat(host_val).concat("\r\n")
-        .concat("Connection: close\r\n");
+    } else { host };
+    let result: ref String = request_line.concat("Host: ").concat(host_val).concat("\r\n").concat("Connection: close\r\n");
     for k in headers.keys() {
         match headers.get(k) {
-            Some(v) => { result = result.concat(k).concat(": ").concat(v).concat("\r\n") },
-            None    => {},
+            Some(v) => {
+                result = result.concat(k).concat(": ").concat(v).concat("\r\n");
+            },
+            None => { },
         }
     }
     if body.len() > 0 {
-        result = result.concat("Content-Length: ").concat(body.len().to_string()).concat("\r\n")
-    } else {}
+        result = result.concat("Content-Length: ").concat(body.len().to_string()).concat("\r\n");
+    } else { }
     result.concat("\r\n").concat(body)
 }
 
 // ── Response parsing ────────────────────────────────────────────────────────
-
 total fn empty_https_headers() -> Map[String, String] {
     let m: ref Map[String, String] = {"__init__": ""};
     let _: Option[String] = m.remove("__init__");
     m
 }
 
-total fn require_https_resp(opt: Option[String], msg: String) -> Result[String, HttpsError] {
+total fn require_https_resp(
+    opt: Option[String],
+    msg: String,
+) -> Result[String, HttpsError] {
     match opt {
         Some(v) => Ok(v),
-        None    => Err(HttpsError::InvalidResponse(msg)),
+        None => Err(HttpsError::InvalidResponse(msg)),
     }
 }
 
 total fn parse_https_status_code(s: String) -> Result[Int, HttpsError] {
     match s.parse_int() {
-        Ok(c)  => Ok(c),
+        Ok(c) => Ok(c),
         Err(_) => Err(HttpsError::InvalidResponse("non-numeric status code")),
     }
 }
@@ -223,11 +225,13 @@ total fn parse_https_headers(lines: List[String]) -> Map[String, String] {
     let m: ref Map[String, String] = empty_https_headers();
     for line in lines {
         match line.find(":") {
-            None    => {},
+            None => { },
             Some(i) => {
                 let k: String = line.substring(0, i).trim().to_lower();
                 let v: String = line.substring(i + 1, line.len()).trim();
-                if k.len() > 0 { m.insert(k, v) } else {}
+                if k.len() > 0 {
+                    m.insert(k, v)
+                } else { }
             },
         }
     }
@@ -247,15 +251,13 @@ total fn parse_https_response(raw: String) -> Result[HttpsResponse, HttpsError] 
     for line in lines.slice(1, n) {
         if !found_blank && line.len() == 0 {
             blank_idx = idx;
-            found_blank = true
-        } else {}
-        idx = idx + 1
+            found_blank = true;
+        } else { }
+        idx = idx + 1;
     }
     let header_lines: List[String] = if found_blank && blank_idx > 1 {
         lines.slice(1, blank_idx)
-    } else {
-        []
-    };
+    } else { [] };
     let headers: Map[String, String] = parse_https_headers(header_lines);
     let body_str: String = if found_blank && blank_idx + 1 < n {
         let body_lines: List[String] = lines.slice(blank_idx + 1, n);
@@ -264,21 +266,18 @@ total fn parse_https_response(raw: String) -> Result[HttpsResponse, HttpsError] 
         for bl in body_lines {
             if body_first {
                 acc = bl.concat("");
-                body_first = false
+                body_first = false;
             } else {
-                acc = acc.concat("\r\n").concat(bl)
+                acc = acc.concat("\r\n").concat(bl);
             }
         }
         acc
-    } else {
-        ""
-    };
+    } else { "" };
     let body: Tainted[String] = relabel taint(body_str, "HTTPS-RESPONSE-BODY");
     Ok(HttpsResponse { status_code: code, headers: headers, body: body })
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
-
 /// Send an HTTPS request. Full control over method, headers, and body.
 ///
 /// Performs: DNS -> TCP connect -> TLS handshake -> send request -> read response.
@@ -297,12 +296,12 @@ pub partial fn https_request(
     let path: String = parsed.path;
     let request_str: String = build_https_request(method, host.concat(""), port, path, headers, body);
     let connect_result: Result[TlsStream, HttpsError] = match tls_client_connect(host, port) {
-        Ok(s)  => Ok(s),
+        Ok(s) => Ok(s),
         Err(e) => Err(map_connect_error(e)),
     };
     let stream: TlsStream = connect_result?;
     let write_result: Result[Unit, HttpsError] = match tls_client_write(stream, request_str) {
-        Ok(_)  => Ok(()),
+        Ok(_) => Ok(()),
         Err(e) => Err(map_write_error(e)),
     };
     match write_result {
@@ -313,7 +312,7 @@ pub partial fn https_request(
         Ok(_) => {
             let read_result: Result[Tainted[String], HttpsError] = match tls_client_read(stream) {
                 Ok(data) => Ok(data),
-                Err(e)   => close_and_fail(stream, map_read_error(e)),
+                Err(e) => close_and_fail(stream, map_read_error(e)),
             };
             match read_result {
                 Err(e) => Err(e),
