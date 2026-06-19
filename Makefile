@@ -1,9 +1,9 @@
-# pkg-tls -- TLS 1.3 client package
-.PHONY: help check test assurance coverage prove version clean
+# pkg/tls — TLS 1.3 client package
+.PHONY: help check test coverage prove assurance fmt lint version clean
 
 .DEFAULT_GOAL := help
 
-MVL := $(shell command -v mvl 2>/dev/null || echo mvl)
+MVL ?= mvl
 DIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
 
 help: ## Show this help
@@ -15,22 +15,25 @@ check: ## Type-check package source files
 test: ## Run unit tests
 	$(MVL) test $(DIR)src/
 
+coverage: ## Run tests with behavioral branch coverage report
+	$(MVL) test $(DIR)src/ --coverage
+
+prove: ## Per-call-site refinement proof breakdown (verbose)
+	$(MVL) prove $(DIR)src/ --verbose
+
 assurance: ## Full assurance: check + tests + assurance report
 	$(MVL) check $(DIR)src/
 	$(MVL) test $(DIR)src/
 	$(MVL) assurance $(DIR)src/ --verbose
 
-coverage: guard-mvl ## Run tests with behavioral branch coverage report
-	$(MVL) test $(DIR)src/ --coverage
+fmt: ## Format source files
+	$(MVL) fmt $(DIR)src/
 
-prove: guard-mvl ## Per-call-site refinement proof breakdown (verbose)
-	$(MVL) prove $(DIR)src/ --verbose
+lint: ## Run linter
+	$(MVL) lint $(DIR)src/
 
 version: ## Show current package version from mvl.toml
 	@grep '^version' mvl.toml | sed 's/version *= *"\(.*\)"/\1/'
 
 clean: ## Remove build artifacts
 	rm -rf $(TMPDIR)mvl_build_tls
-
-guard-mvl:
-	@command -v $(MVL) >/dev/null 2>&1 || { echo "mvl not found in PATH"; exit 1; }
