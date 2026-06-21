@@ -6,12 +6,10 @@
 //
 // Types and helpers are loaded automatically from https.mvl (module resolver
 // loads files with type declarations into the test prelude).
-
 // ── URL parsing tests ───────────────────────────────────────────────────────
-
 test fn parse_url_simple_host() -> Unit {
     match parse_https_url("https://example.com/path") {
-        Err(_)  => assert(false),
+        Err(_) => assert(false),
         Ok(url) => {
             assert_eq(url.host, "example.com");
             assert_eq(url.port, 443);
@@ -22,7 +20,7 @@ test fn parse_url_simple_host() -> Unit {
 
 test fn parse_url_with_port() -> Unit {
     match parse_https_url("https://localhost:8443/api") {
-        Err(_)  => assert(false),
+        Err(_) => assert(false),
         Ok(url) => {
             assert_eq(url.host, "localhost");
             assert_eq(url.port, 8443);
@@ -33,7 +31,7 @@ test fn parse_url_with_port() -> Unit {
 
 test fn parse_url_no_path() -> Unit {
     match parse_https_url("https://example.com") {
-        Err(_)  => assert(false),
+        Err(_) => assert(false),
         Ok(url) => {
             assert_eq(url.host, "example.com");
             assert_eq(url.path, "/")
@@ -43,7 +41,7 @@ test fn parse_url_no_path() -> Unit {
 
 test fn parse_url_with_query_string() -> Unit {
     match parse_https_url("https://api.example.com/search?q=hello") {
-        Err(_)  => assert(false),
+        Err(_) => assert(false),
         Ok(url) => {
             assert_eq(url.host, "api.example.com");
             assert_eq(url.path, "/search?q=hello")
@@ -53,7 +51,7 @@ test fn parse_url_with_query_string() -> Unit {
 
 test fn parse_url_rejects_http() -> Unit {
     match parse_https_url("http://example.com") {
-        Ok(_)  => assert(false),
+        Ok(_) => assert(false),
         Err(HttpsError::InvalidUrl(_)) => assert(true),
         Err(_) => assert(false),
     }
@@ -61,7 +59,7 @@ test fn parse_url_rejects_http() -> Unit {
 
 test fn parse_url_rejects_empty_host() -> Unit {
     match parse_https_url("https:///path") {
-        Ok(_)  => assert(false),
+        Ok(_) => assert(false),
         Err(HttpsError::InvalidUrl(_)) => assert(true),
         Err(_) => assert(false),
     }
@@ -69,7 +67,7 @@ test fn parse_url_rejects_empty_host() -> Unit {
 
 test fn parse_url_rejects_no_scheme() -> Unit {
     match parse_https_url("example.com") {
-        Ok(_)  => assert(false),
+        Ok(_) => assert(false),
         Err(HttpsError::InvalidUrl(_)) => assert(true),
         Err(_) => assert(false),
     }
@@ -77,14 +75,13 @@ test fn parse_url_rejects_no_scheme() -> Unit {
 
 test fn parse_url_rejects_invalid_port() -> Unit {
     match parse_https_url("https://example.com:abc/path") {
-        Ok(_)  => assert(false),
+        Ok(_) => assert(false),
         Err(HttpsError::InvalidUrl(_)) => assert(true),
         Err(_) => assert(false),
     }
 }
 
 // ── Request building tests ──────────────────────────────────────────────────
-
 test fn build_get_request_default_port() -> Unit {
     let hdrs: Map[String, String] = empty_https_headers();
     let req: String = build_https_request("GET", "example.com", 443, "/", hdrs, "");
@@ -113,10 +110,9 @@ test fn build_request_no_content_length_for_empty_body() -> Unit {
 }
 
 // ── Response parsing tests ──────────────────────────────────────────────────
-
 test fn parse_simple_200_response() -> Unit {
     match parse_https_response("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nhello") {
-        Err(_)  => assert(false),
+        Err(_) => assert(false),
         Ok(resp) => {
             assert_eq(resp.status_code, 200);
             assert_eq(relabel trust(resp.body, "TEST"), "hello")
@@ -126,7 +122,7 @@ test fn parse_simple_200_response() -> Unit {
 
 test fn parse_response_headers_lowercased() -> Unit {
     match parse_https_response("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nX-Custom: foo\r\n\r\nbody") {
-        Err(_)  => assert(false),
+        Err(_) => assert(false),
         Ok(resp) => {
             assert_eq(resp.headers.contains_key("content-type"), true);
             assert_eq(resp.headers.contains_key("x-custom"), true)
@@ -136,7 +132,7 @@ test fn parse_response_headers_lowercased() -> Unit {
 
 test fn parse_response_empty_body() -> Unit {
     match parse_https_response("HTTP/1.1 204 No Content\r\n\r\n") {
-        Err(_)  => assert(false),
+        Err(_) => assert(false),
         Ok(resp) => {
             assert_eq(resp.status_code, 204);
             assert_eq(relabel trust(resp.body, "TEST"), "")
@@ -146,7 +142,7 @@ test fn parse_response_empty_body() -> Unit {
 
 test fn parse_response_empty_is_error() -> Unit {
     match parse_https_response("") {
-        Ok(_)  => assert(false),
+        Ok(_) => assert(false),
         Err(HttpsError::InvalidResponse(_)) => assert(true),
         Err(_) => assert(false),
     }
@@ -154,7 +150,7 @@ test fn parse_response_empty_is_error() -> Unit {
 
 test fn parse_response_malformed_status_is_error() -> Unit {
     match parse_https_response("GARBAGE") {
-        Ok(_)  => assert(false),
+        Ok(_) => assert(false),
         Err(HttpsError::InvalidResponse(_)) => assert(true),
         Err(_) => assert(false),
     }
@@ -162,7 +158,7 @@ test fn parse_response_malformed_status_is_error() -> Unit {
 
 test fn parse_response_body_is_tainted() -> Unit {
     match parse_https_response("HTTP/1.1 200 OK\r\n\r\nsecret data") {
-        Err(_)  => assert(false),
+        Err(_) => assert(false),
         Ok(resp) => {
             let trusted: String = relabel trust(resp.body, "TEST-VALIDATE");
             assert_eq(trusted, "secret data")
@@ -171,7 +167,6 @@ test fn parse_response_body_is_tainted() -> Unit {
 }
 
 // ── Error message tests ─────────────────────────────────────────────────────
-
 test fn error_msg_invalid_url() -> Unit {
     assert_eq(https_error_msg(HttpsError::InvalidUrl("bad")), "invalid URL: bad")
 }
@@ -185,7 +180,6 @@ test fn error_msg_invalid_response() -> Unit {
 }
 
 // ── CRLF injection validation tests ─────────────────────────────────────────
-
 test fn validate_headers_rejects_crlf_in_key() -> Unit {
     let hdrs: Map[String, String] = {"X-Evil\r\nFoo": "val"};
     match validate_https_headers(hdrs) {
@@ -246,7 +240,6 @@ test fn validate_no_crlf_accepts_clean_string() -> Unit {
 }
 
 // ── Port range validation tests ─────────────────────────────────────────────
-
 test fn parse_url_rejects_port_zero() -> Unit {
     match parse_https_url("https://example.com:0/path") {
         Ok(_) => assert(false),

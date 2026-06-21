@@ -9,46 +9,28 @@
 //
 // Types and helpers are loaded automatically from tls.mvl (module resolver
 // loads files with type/extern declarations into the test prelude).
-
 // ── Error message tests ─────────────────────────────────────────────────────
-
 test fn error_msg_handshake_failed() -> Unit {
-    assert_eq(
-        tls_error_msg(TlsError::HandshakeFailed("protocol version mismatch")),
-        "TLS handshake failed: protocol version mismatch"
-    )
+    assert_eq(tls_error_msg(TlsError::HandshakeFailed("protocol version mismatch")), "TLS handshake failed: protocol version mismatch")
 }
 
 test fn error_msg_certificate_invalid() -> Unit {
-    assert_eq(
-        tls_error_msg(TlsError::CertificateInvalid("expired")),
-        "certificate invalid: expired"
-    )
+    assert_eq(tls_error_msg(TlsError::CertificateInvalid("expired")), "certificate invalid: expired")
 }
 
 test fn error_msg_connection_closed() -> Unit {
-    assert_eq(
-        tls_error_msg(TlsError::ConnectionClosed),
-        "TLS connection closed"
-    )
+    assert_eq(tls_error_msg(TlsError::ConnectionClosed), "TLS connection closed")
 }
 
 test fn error_msg_io_error() -> Unit {
-    assert_eq(
-        tls_error_msg(TlsError::IoError("broken pipe")),
-        "TLS I/O error: broken pipe"
-    )
+    assert_eq(tls_error_msg(TlsError::IoError("broken pipe")), "TLS I/O error: broken pipe")
 }
 
 test fn error_msg_other() -> Unit {
-    assert_eq(
-        tls_error_msg(TlsError::Other("unknown")),
-        "TLS error: unknown"
-    )
+    assert_eq(tls_error_msg(TlsError::Other("unknown")), "TLS error: unknown")
 }
 
 // ── Type construction tests ─────────────────────────────────────────────────
-
 test fn tls_stream_handle_round_trip() -> Unit {
     let stream: TlsStream = TlsStream { _handle: 42 };
     assert_eq(stream._handle, 42)
@@ -60,10 +42,10 @@ test fn tls_error_variants_are_distinct() -> Unit {
     let e3: TlsError = TlsError::ConnectionClosed;
     let e4: TlsError = TlsError::IoError("a");
     let e5: TlsError = TlsError::Other("a");
-    // Each produces a different message prefix
     assert_eq(tls_error_msg(e1).starts_with("TLS handshake"), true);
     assert_eq(tls_error_msg(e2).starts_with("certificate"), true);
     assert_eq(tls_error_msg(e3).starts_with("TLS connection"), true);
     assert_eq(tls_error_msg(e4).starts_with("TLS I/O"), true);
     assert_eq(tls_error_msg(e5).starts_with("TLS error"), true)
 }
+// Each produces a different message prefix

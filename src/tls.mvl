@@ -24,11 +24,9 @@
 // handle sharing between pkg.tls and std.net.
 //
 // See #1017.
-
 use std.ifc.{Tainted, taint}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
 /// Opaque handle to an active TLS connection (TCP + TLS managed internally).
 pub type TlsStream = struct {
     _handle: Int,
@@ -47,7 +45,6 @@ pub type TlsError = enum {
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
-
 total fn make_tls_error(handle: Int) -> TlsError {
     let code: Int = tls_errno(handle);
     let msg: String = tls_errmsg(handle);
@@ -61,13 +58,15 @@ total fn make_tls_error(handle: Int) -> TlsError {
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
-
 /// Establish a TLS 1.3 connection to `host:port`.
 ///
 /// Performs TCP connect + TLS handshake + certificate validation in one call.
 /// The hostname is verified against the server certificate.
 /// Returns an opaque TlsStream handle on success.
-pub partial fn tls_client_connect(host: String, port: Int where port > 0 && port < 65536) -> Result[TlsStream, TlsError] ! Net {
+pub partial fn tls_client_connect(
+    host: String,
+    port: Int where port > 0 && port < 65536,
+) -> Result[TlsStream, TlsError] ! Net {
     let handle: Int = tls_connect(host, port);
     if handle > 0 {
         Ok(TlsStream { _handle: handle })
@@ -95,7 +94,9 @@ pub partial fn tls_client_read(stream: TlsStream) -> Result[Tainted[String], Tls
 ///
 /// Returns Tainted[String] — network data is untrusted.
 /// Suitable for HTTP/1.1 responses where Connection: close is sent.
-pub partial fn tls_client_read_response(stream: TlsStream) -> Result[Tainted[String], TlsError] ! Net {
+pub partial fn tls_client_read_response(
+    stream: TlsStream,
+) -> Result[Tainted[String], TlsError] ! Net {
     let data: String = tls_read_response(stream._handle);
     if tls_errno(stream._handle) == 0 {
         Ok(relabel taint(data, "TLS-READ-RESPONSE"))
@@ -107,7 +108,10 @@ pub partial fn tls_client_read_response(stream: TlsStream) -> Result[Tainted[Str
 /// Write data to the TLS stream.
 ///
 /// Returns the number of bytes written on success.
-pub partial fn tls_client_write(stream: TlsStream, data: String) -> Result[Unit, TlsError] ! Net {
+pub partial fn tls_client_write(
+    stream: TlsStream,
+    data: String,
+) -> Result[Unit, TlsError] ! Net {
     let written: Int = tls_write(stream._handle, data);
     if written >= 0 {
         Ok(())
@@ -120,17 +124,15 @@ pub partial fn tls_client_write(stream: TlsStream, data: String) -> Result[Unit,
 ///
 /// Sends TLS close_notify, then closes the underlying TCP socket.
 /// No-op if the handle is already closed.
-pub total fn tls_client_close(stream: TlsStream) -> Unit {
-    tls_close(stream._handle)
-}
+pub total fn tls_client_close(stream: TlsStream) -> Unit { tls_close(stream._handle) }
 
 /// Format a TlsError as a human-readable string.
 pub total fn tls_error_msg(e: TlsError) -> String {
     match e {
-        TlsError::HandshakeFailed(msg)    => "TLS handshake failed: ".concat(msg),
+        TlsError::HandshakeFailed(msg) => "TLS handshake failed: ".concat(msg),
         TlsError::CertificateInvalid(msg) => "certificate invalid: ".concat(msg),
-        TlsError::ConnectionClosed        => "TLS connection closed",
-        TlsError::IoError(msg)            => "TLS I/O error: ".concat(msg),
-        TlsError::Other(msg)              => "TLS error: ".concat(msg),
+        TlsError::ConnectionClosed => "TLS connection closed",
+        TlsError::IoError(msg) => "TLS I/O error: ".concat(msg),
+        TlsError::Other(msg) => "TLS error: ".concat(msg),
     }
 }
